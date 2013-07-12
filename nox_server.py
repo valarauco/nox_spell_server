@@ -170,14 +170,6 @@ class SpellChecker:
         data = environ.get("wsgi.input").read(data_len)
         return data
 
-    def useGoogle(self, data, lang):
-        con = httplib.HTTPSConnection("www.google.com")
-        con.request("POST", "/tbproxy/spell?lang=%s" % lang, data)
-        response = con.getresponse()
-        r_text = response.read()
-        con.close()
-        return [r_text]
-
     def useAspell(self, data, lang):
         r_text = googleAspellLike(data, lang)
         return [r_text]
@@ -202,10 +194,7 @@ class SpellChecker:
         start_response('200 OK', [('Content-Type', 'text/html; charset=%s' % "utf-8")])
 
         if path.find("/") == 0:
-            if lang in ['da', 'de', 'en', 'es', 'fr', 'it', 'nl', 'pl', 'pt', 'fi', 'sv']:
-                return self.useGoogle(data, lang)
-            else:
-                return self.useAspell(data, lang)
+            return self.useAspell(data, lang)
         return "Not found"
 
 wsgi_app = SpellChecker()
