@@ -4,6 +4,7 @@ from signal import SIGKILL
 import httplib
 import re
 from lib.cherrypy import _cpwsgiserver
+from lib.daemon import Daemon
 import time
 import socket
 
@@ -197,18 +198,38 @@ class SpellChecker:
             return self.useAspell(data, lang)
         return "Not found"
 
-wsgi_app = SpellChecker()
-def start(port):
-    server = _cpwsgiserver.CherryPyWSGIServer(('', port), wsgi_app)
-    try:
-        print "Server started on port %s" % port
-        server.start()
-    except KeyboardInterrupt:
-        print "Server stopped"
-        server.stop()
+class SpellServerDaemon(Daemon):
+    port = 14003
+    server = None
+    wsgi_app = SpellChecker()
+
+    def run(self):
+        self.server = _cpwsgiserver.CherryPyWSGIServer(('', self.port), self.wsgi_app)
+        try:
+            print "Server started on port %s" % self.port
+            self.server.start()
+        except KeyboardInterrupt:
+            print "Server stopped"
+            self.server.stop()
+
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print "Usge is: python nox_server.py PORT"
+        print "Usge is: python nox_server.py [start|stop|restart] PORT pid-uri"
+        sys.exit(2)
     else:
-        start(int(sys.argv[1]))
+        p_pid = "/tmp/nox_server.pid" if len(sys.argv) < 4 else str(sys.argv[3])
+        daemon = SpellServerDaemon(p_pid)
+        daemon.port = daemon.port if len(sys.argv) < 3 else int(sys.argv[2])
+        
+        if 'start' == sys.argv[1]:
+            daemon.start()
+        elif 'stop' == sys.argv[1]:
+            daemon.stop()
+        elif 'restart' == sys.argv[1]:
+            daemon.restart()
+        else:
+            print "Unknown command"
+            sys.exit(2)
+        sys.exit(0)
